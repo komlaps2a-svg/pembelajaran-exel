@@ -110,8 +110,7 @@ function compileLevelData(meta) {
         if(fn === 'MIN') targetValue = Math.min(...valsTarget);
         
         strictFormula = `=${fn}(${targetColLetter}2:${targetColLetter}${rows+1})`;
-        explanation = `<h4>Bedah Arsitektur Agregasi</h4><ul><li><strong>Mekanisme Inti:</strong> Fungsi <code>${fn}</code> membaca data sebagai 1D Array.</li><li><strong>Keterhubungan (Impact):</strong> Memblok seluruh tabel akan memicu pencemaran data (Data Corruption). Presisi spasial adalah segalanya.</li></ul>`;
-        
+        explanation = `<h4>Bedah Arsitektur Agregasi</h4><ul><li><strong>Mekanisme Inti:</strong> Fungsi <code>${fn}</code> membaca data sebagai 1D Array (vektor tunggal). Mesin akan mengabaikan tipe data string.</li><li><strong>Eksekusi Arsitektural:</strong> Rentang dikunci murni pada kolom target. Baris 1 direservasi secara global untuk Header.</li><li><strong>Keterhubungan (Impact):</strong> Memblok seluruh tabel akan memicu pencemaran data (Data Corruption) karena kolom Decoy ikut dikalkulasi.</li></ul>`;
         missionParams = { fn: fn, targetColLetter: targetColLetter, rows: rows };
     } 
     else if (meta.type === "LOGIC_TEXT") {
@@ -139,7 +138,7 @@ function compileLevelData(meta) {
                 dataMatrix.push({type: 'data', cells: row});
             }
             strictFormula = `=IF(B2>=${threshold},"APPROVE","REJECT")`;
-            explanation = `<h4>Bedah Gerbang Logika Relatif</h4><ul><li><strong>Mekanisme Inti:</strong> <code>IF</code> beroperasi sebagai percabangan biner murni.</li><li><strong>Eksekusi Arsitektural:</strong> Referensi <code>B2</code> bersifat relatif, memungkinkan *dynamic auto-fill*.</li></ul>`;
+            explanation = `<h4>Bedah Gerbang Logika Relatif</h4><ul><li><strong>Mekanisme Inti:</strong> <code>IF</code> beroperasi sebagai percabangan biner murni. Evaluasi memuntahkan TRUE/FALSE.</li><li><strong>Eksekusi Arsitektural:</strong> Referensi <code>B2</code> tanpa lambang dolar bersifat relatif, memungkinkan propagasi massal tersinkronisasi.</li></ul>`;
             missionParams = { missionText: `Tulis rumus untuk **Baris 2** di **Kolom ${targetColLetter}**. Jika Skor (Kolom B) >= ${threshold}, cetak "APPROVE", jika tidak, "REJECT".` };
         } else {
             let numChars = 4 + (scale % 4);
@@ -154,40 +153,66 @@ function compileLevelData(meta) {
                 dataMatrix.push({type: 'data', cells: row});
             }
             strictFormula = `=LEFT(B2,${numChars})`;
-            explanation = `<h4>Bedah Ekstraksi String</h4><ul><li><strong>Mekanisme Inti:</strong> <code>LEFT</code> membaca indeks memori string dari byte ke-0.</li></ul>`;
-            missionParams = { missionText: `Ekstrak ${numChars} karakter PERTAMA dari teks di **Kolom B** Baris 2.` };
+            explanation = `<h4>Bedah Ekstraksi String</h4><ul><li><strong>Mekanisme Inti:</strong> <code>LEFT</code> berinteraksi langsung dengan tipe data String. Ia membaca indeks memori string dari byte ke-0 (paling kiri) dan memotong memori persis sepanjang ${numChars} karakter.</li><li><strong>Keterhubungan (Impact):</strong> Di ranah ETL (Extract, Transform, Load), fungsi ini mutlak diperlukan untuk menghilangkan suffix sampah.</li></ul>`;
+            missionParams = { missionText: `Ekstrak ${numChars} karakter PERTAMA dari teks kotor di **Kolom B** Baris 2.` };
         }
         targetValue = targetArray;
     }
-    // Simplifikasi tipe lain untuk memastikan tidak kepotong (tetap menantang)
     else {
-        calcMode = "MASS_FILL";
-        rows = 10; totalCols = 4;
-        let numChars = 3;
-        headers = ["A (ID)", "B (Teks Kotor)", "C (Decoy)", "D (Target)"];
-        let targetArray = [];
-        for(let r=1; r<=rows; r++) {
-            let code = `ABC${Math.floor(Math.random()*1000)}`;
-            targetArray.push(code.substring(0, numChars));
-            dataMatrix.push({type: 'data', cells: [`ID-${r}`, code, genDecoy(), "?"]});
+        // TIER KOMPLEKS (LOOKUP, INDEX MATCH, NESTED IF, TITAN)
+        calcMode = (scale % 2 === 0) ? "DASHBOARD" : "MASS_FILL";
+        rows = Math.min(10 + Math.floor(scale / 10), 200); 
+        totalCols = Math.min(5 + Math.floor(scale / 20), 26);
+        let colLtr = getColLetter(totalCols);
+
+        if (calcMode === "DASHBOARD") {
+            let targetId = `PROD-${Math.floor(Math.random() * (rows - 1)) + 1}`;
+            headers = ["A (ID)", "B (Kategori)", "C (Harga)", "D (Stok)", "E (X)"];
+            for(let c=6; c<=totalCols; c++) headers.push(`${getColLetter(c)}`);
+
+            dataMatrix.push({type: 'input', cells: ["CARI_ID", targetId, "", "", ""]});
+            dataMatrix.push({type: 'divider', cells: ["HASIL", "?", "", "", ""]});
+
+            let tValue = 0;
+            for(let r=1; r<=rows; r++) {
+                let id = `PROD-${r}`;
+                let cat = Math.random() > 0.5 ? "A" : "B";
+                let hrg = Math.floor(Math.random() * 50) * 1000 + 5000;
+                let row = [id, cat, hrg, Math.floor(Math.random() * 100)];
+                for(let c=5; c<=totalCols; c++) row.push(genDecoy());
+                dataMatrix.push({type: 'data', cells: row});
+                if(id === targetId) tValue = hrg;
+            }
+            targetValue = tValue;
+            strictFormula = `=IFERROR(VLOOKUP(B2,A4:${colLtr}${rows+3},3,0),"REJECT")`;
+            explanation = `<h4>Bedah Exception Handling & Skalar Lookup</h4><ul><li><strong>Mekanisme Inti (Layer 1):</strong> <code>VLOOKUP</code> diluncurkan untuk memetakan referensi tunggal B2 dan mengekstrak entitas statis (Konstanta Skalar) berupa Harga di kolom ke-3.</li><li><strong>Eksekusi Arsitektural (Layer 0):</strong> Jika Konstanta gagal dipanggil, selubung pelindung luar <code>IFERROR</code> secara sepihak membatalkan kerusakan mesin dan menginjeksi peringatan "REJECT" ke Dasbor Eksekutif. Ini adalah fondasi Anti-Fragile.</li></ul>`;
+            missionParams = { missionText: `Tulis di **B3**. Cari Harga (Kolom C) dari Produk (Input B2) menggunakan VLOOKUP secara Exact Match. Matriks data murni dimulai dari A4. JIKA gagal/error, bungkus dengan IFERROR untuk menampilkan teks "REJECT".` };
+        } else {
+            let targetColIndex = 4;
+            headers = ["A (Ref ID)", "B (Gaji)", "C (KPI)", "D (Isi Bonus)", "E (Decoy)"];
+            
+            let targetArray = [];
+            for(let r=1; r<=rows; r++) {
+                let gaji = Math.floor(Math.random() * 50) * 1000 + 5000;
+                let kpi = Math.floor(Math.random() * 20) + 80;
+                let bonus = (kpi >= 90) ? gaji * 0.5 : 0;
+                targetArray.push(bonus);
+                dataMatrix.push({type: 'data', cells: [`EMP-${r}`, gaji, kpi, "?", genDecoy()]});
+            }
+            targetValue = targetArray;
+            strictFormula = `=IF(C2>=90,B2*0.5,0)`;
+            explanation = `<h4>Bedah Relational Boolean Logic</h4><ul><li><strong>Mekanisme Inti:</strong> Gerbang logika memverifikasi secara ketat apakah C2 memenuhi ambang batas 90.</li><li><strong>Keterhubungan (Impact):</strong> Rumus ini memastikan otonomi sistem *payroll*. Tidak ada kebocoran dana (Zero-Trust Policy) dalam perhitungan bonus massal.</li></ul>`;
+            missionParams = { missionText: `Tulis di **Baris 2** (Kolom D). JIKA KPI (C2) >= 90, MAKA kalikan Gaji (B2) dengan 0.5. Jika gagal, beri nilai 0.` };
         }
-        strictFormula = `=LEFT(B2,${numChars})`;
-        explanation = `<h4>Eksekusi String</h4><p>Potong string menggunakan LEFT.</p>`;
-        missionParams = { missionText: `Tulis =LEFT(B2,${numChars}) untuk menyelesaikan anomali.` };
-        targetValue = targetArray;
     }
 
-    // INJEKSI NARRATIVE ENGINE
     const narrativeData = StoryEngine.getNarrative(meta.globalLevel, meta.type, missionParams);
 
     return {
-        ...meta,
-        calcMode, theory: narrativeData.theory, mission: narrativeData.mission, strictFormula, targetValue, explanation,
-        columns: headers, data: dataMatrix
+        ...meta, calcMode, theory: narrativeData.theory, mission: narrativeData.mission, strictFormula, targetValue, explanation, columns: headers, data: dataMatrix
     };
 }
 
-// UI & EVALUATION ENGINE
 function toggleTheme() {
     const body = document.documentElement;
     body.setAttribute("data-theme", body.getAttribute("data-theme") === "light" ? "dark" : "light");
@@ -327,6 +352,10 @@ function giveUp() {
     const lesson = activeCompiledLesson;
     document.getElementById("formulaInput").value = lesson.strictFormula;
     applyHighlighting();
+    
+    const oldRow = document.getElementById('matrixResultRow');
+    if (oldRow) oldRow.remove();
+
     showFeedback(document.getElementById("feedbackBox"), document.getElementById("feedTitle"), document.getElementById("feedMsg"), 'info', "ANALISIS POST-MORTEM (SOLUSI)", `Sintaks Produksi: <br><code>${lesson.strictFormula}</code> <div class="explanation-block">${lesson.explanation}</div>`);
     if (currentIndex < curriculumMeta.length - 1) document.getElementById("btnNext").style.display = "block";
     setTimeout(() => gsap.to(window, {scrollTo: document.body.scrollHeight, duration: 0.5}), 300);
@@ -335,11 +364,19 @@ function giveUp() {
 function runTest() {
     const lesson = activeCompiledLesson;
     let userFormulaRaw = document.getElementById("formulaInput").value;
-    const feedback = document.getElementById("feedbackBox"); const title = document.getElementById("feedTitle"); const msg = document.getElementById("feedMsg");
+    const feedback = document.getElementById("feedbackBox"); 
+    const title = document.getElementById("feedTitle"); 
+    const msg = document.getElementById("feedMsg");
+    
+    const oldRow = document.getElementById('matrixResultRow');
+    if (oldRow) oldRow.remove();
+
     if (!userFormulaRaw.trim()) return;
 
     let userFormula = userFormulaRaw.replace(/[\r\n\t]/g, '').replace(/[“”〝〞〟＂«»„‟]/g, '"').replace(/['‘’‛]{2}/g, '"').replace(/;/g, ',').replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '').trim();
-    if (!userFormula.startsWith("=")) { showFeedback(feedback, title, msg, 'error', "FATAL SINTAKS", "Operator komputasi wajib diawali '='."); return; }
+    if (!userFormula.startsWith("=")) { 
+        showFeedback(feedback, title, msg, 'error', "FATAL SINTAKS", "Operator komputasi wajib diawali '='."); return; 
+    }
 
     const cleanUserFormula = userFormula.toUpperCase().replace(/\s/g, '').replace(/\bFALSE\b/g, '0').replace(/\$/g, '');
     const cleanStrictFormula = lesson.strictFormula.toUpperCase().replace(/\s/g, '').replace(/\bFALSE\b/g, '0').replace(/\$/g, '');
@@ -347,7 +384,8 @@ function runTest() {
     let isResultCorrect = false; let result;
 
     if (cleanUserFormula === cleanStrictFormula) {
-        isResultCorrect = true; result = Array.isArray(lesson.targetValue) ? lesson.targetValue[0] : lesson.targetValue;
+        isResultCorrect = true; 
+        result = Array.isArray(lesson.targetValue) ? lesson.targetValue[0] : lesson.targetValue;
     } else {
         try {
             const sheetName = engine.addSheet('RuntimeSheet');
@@ -356,25 +394,96 @@ function runTest() {
             const evalCell = { sheet: activeSheetId, col: 100, row: 1000 };
             engine.setCellContents(evalCell, [[userFormula.replace(/\bFALSE\b/gi, '0')]]);
             result = engine.getCellValue(evalCell);
-            if (result && typeof result === 'object' && result.toString().startsWith('#')) throw new Error(result.toString());
-            isResultCorrect = typeof result === 'number' && typeof lesson.targetValue === 'number' ? (Number(result.toFixed(4)) === Number(Number(lesson.targetValue).toFixed(4))) : (result.toString() === lesson.targetValue.toString());
+            
+            if (result && typeof result === 'object' && result.toString().startsWith('#')) {
+                throw new Error(result.toString());
+            }
+            
+            isResultCorrect = typeof result === 'number' && typeof lesson.targetValue === 'number' ? 
+                (Number(result.toFixed(4)) === Number(Number(lesson.targetValue).toFixed(4))) : 
+                (result.toString() === lesson.targetValue.toString());
             engine.removeSheet(activeSheetId);
         } catch (err) { result = err; }
     }
 
     if (!isResultCorrect) {
-        showFeedback(feedback, title, msg, 'error', "INTERUPSI MESIN EXCEL", `Kompilasi Gagal. Wajib: <code>${lesson.strictFormula}</code>`); return;
+        showFeedback(feedback, title, msg, 'error', "INTERUPSI MESIN EXCEL", `Kompilasi Gagal. Terdeteksi anomali pada arsitektur logika Anda. Wajib: <code>${lesson.strictFormula}</code>`); 
+        return;
     }
 
-    // Success Animation
     if (lesson.calcMode === "MASS_FILL") {
-        showFeedback(feedback, title, msg, 'success', "PROPAGASI MASIF BERHASIL", `Sistem mengeksekusi asinkron.<div class="explanation-block">${lesson.explanation}</div>`);
+        const tableRows = document.querySelectorAll('#sandboxBody tr');
+        const targetArray = lesson.targetValue;
+        let emptyColIndex = -1;
+        
+        for(let i=0; i<tableRows.length; i++) {
+            const cells = tableRows[i].querySelectorAll('td');
+            for(let j=0; j<cells.length; j++) {
+                if(cells[j].innerText === "?") { emptyColIndex = j; break; }
+            }
+            if (emptyColIndex !== -1) break;
+        }
+
+        if (emptyColIndex !== -1) {
+            let targetIdx = 0;
+            tableRows.forEach((tr, idx) => {
+                const cell = tr.querySelectorAll('td')[emptyColIndex];
+                if(cell && cell.innerText === "?") {
+                    cell.classList.remove('empty-target');
+                    cell.classList.add('filled-target');
+                    cell.innerText = typeof targetArray[targetIdx] === 'number' ? targetArray[targetIdx].toLocaleString('id-ID') : targetArray[targetIdx];
+                    gsap.fromTo(cell, {opacity: 0, y: -10}, {opacity: 1, y: 0, duration: 0.4, delay: targetIdx * 0.05});
+                    targetIdx++;
+                }
+            });
+        }
+        showFeedback(feedback, title, msg, 'success', "PROPAGASI MASIF BERHASIL", `Sistem mengeksekusi *drag-down* secara asinkron ke seluruh baris bawah.<div class="explanation-block">${lesson.explanation}</div>`);
     } else {
-        showFeedback(feedback, title, msg, 'success', "VALIDASI SEMPURNA", `Komputasi target terkunci.<div class="explanation-block">${lesson.explanation}</div>`);
+        let questionCell = document.getElementById("targetQuestionMark");
+        const tbody = document.getElementById("sandboxBody");
+        const totalCols = lesson.columns.length + 1; 
+        
+        const tr = document.createElement("tr");
+        tr.id = "matrixResultRow";
+        tr.className = "matrix-result-row";
+        tr.innerHTML = `<td colspan="${totalCols}" class="matrix-result-label">Laporan Dasbor Final: <br><span class="matrix-result-value" id="matrixResultValue">0</span></td>`;
+        tbody.appendChild(tr);
+
+        setTimeout(() => { tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 100);
+
+        if (typeof result === 'number') {
+            let targetObj = { val: 0 };
+            gsap.to(targetObj, {
+                val: result, duration: 1.5, ease: "power3.out",
+                onUpdate: function() {
+                    let currentVal = Math.round(this.targets()[0].val).toLocaleString('id-ID');
+                    document.getElementById("matrixResultValue").innerText = currentVal;
+                    if(questionCell) {
+                        questionCell.classList.remove('empty-target'); questionCell.classList.add('filled-target');
+                        questionCell.innerText = currentVal;
+                    }
+                },
+                onComplete: function() {
+                    let finalVal = result.toLocaleString('id-ID');
+                    document.getElementById("matrixResultValue").innerText = finalVal;
+                    if(questionCell) questionCell.innerText = finalVal;
+                }
+            });
+        } else {
+            document.getElementById("matrixResultValue").innerText = result;
+            gsap.fromTo("#matrixResultValue", {scale: 0.2, opacity: 0}, {scale: 1, opacity: 1, duration: 0.8, ease: "back.out(1.7)"});
+            if(questionCell) {
+                questionCell.classList.remove('empty-target'); questionCell.classList.add('filled-target');
+                questionCell.innerText = result;
+                gsap.fromTo(questionCell, {scale: 0.2, opacity: 0}, {scale: 1, opacity: 1, duration: 0.8, ease: "back.out(1.7)"});
+            }
+        }
+        showFeedback(feedback, title, msg, 'success', "VALIDASI ARSITEKTUR SEMPURNA", `Komputasi target terkunci dengan presisi absolut.<div class="explanation-block">${lesson.explanation}</div>`);
     }
+
     saveProgress(lesson.globalLevel); 
     if (currentIndex < curriculumMeta.length - 1) document.getElementById("btnNext").style.display = "block";
-    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 500);
+    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 1000);
 }
 
 function nextLevel() {
