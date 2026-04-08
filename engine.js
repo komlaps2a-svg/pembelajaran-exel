@@ -115,7 +115,6 @@ function compileLevelData(meta) {
     } 
     else if (meta.type === "LOGIC_TEXT") {
         calcMode = "MASS_FILL"; 
-        let isLogic = scale % 2 === 0;
         rows = Math.min(5 + Math.floor(scale / 15), 120); 
         totalCols = Math.min(4 + Math.floor(scale / 40), 18);
         targetColIndex = 2 + (scale % (totalCols - 1));
@@ -125,7 +124,9 @@ function compileLevelData(meta) {
         for(let c=2; c<=totalCols; c++) headers.push(c === targetColIndex ? `${getColLetter(c)} (Target)` : `${getColLetter(c)} (X)`);
 
         let targetArray = [];
-        if(isLogic) {
+        let chaosFactor = scale % 3; // Injeksi Kompleksitas Prosedural
+
+        if (chaosFactor === 0) {
             let threshold = 500 + Math.floor(Math.random() * 300);
             for(let r=1; r<=rows; r++) {
                 let row = [`K-${r}`];
@@ -138,28 +139,49 @@ function compileLevelData(meta) {
                 dataMatrix.push({type: 'data', cells: row});
             }
             strictFormula = `=IF(B2>=${threshold},"APPROVE","REJECT")`;
-            explanation = `<h4>Bedah Gerbang Logika Relatif</h4><ul><li><strong>Mekanisme Inti:</strong> <code>IF</code> beroperasi sebagai percabangan biner murni. Evaluasi memuntahkan TRUE/FALSE.</li><li><strong>Eksekusi Arsitektural:</strong> Referensi <code>B2</code> tanpa lambang dolar bersifat relatif, memungkinkan propagasi massal tersinkronisasi.</li></ul>`;
+            explanation = `<h4>Bedah Gerbang Logika Relatif</h4><ul><li><strong>Mekanisme Inti:</strong> <code>IF</code> beroperasi sebagai percabangan biner murni. Evaluasi memuntahkan TRUE/FALSE.</li><li><strong>Eksekusi Arsitektural:</strong> Referensi <code>B2</code> tanpa lambang dolar bersifat relatif, memungkinkan propagasi massal.</li></ul>`;
             missionParams = { missionText: `Tulis rumus untuk **Baris 2** di **Kolom ${targetColLetter}**. Jika Skor (Kolom B) >= ${threshold}, cetak "APPROVE", jika tidak, "REJECT".` };
-        } else {
-            let numChars = 4 + (scale % 4);
+        } 
+        else if (chaosFactor === 1) {
             for(let r=1; r<=rows; r++) {
                 let row = [`K-${r}`];
-                let rawCode = `INV${Math.floor(Math.random()*9000)}-XYZ`;
+                let isVip = Math.random() > 0.5;
+                let rawCode = isVip ? `VIP-${Math.floor(Math.random()*9000)}` : `REG-${Math.floor(Math.random()*9000)}`;
                 for(let c=2; c<=totalCols; c++) {
-                    if (c === targetColIndex) { row.push("?"); targetArray.push(rawCode.substring(0, numChars)); }
+                    if (c === targetColIndex) { row.push("?"); targetArray.push(isVip ? "PRIORITAS" : "STANDAR"); }
                     else if (c === 2) row.push(rawCode); 
                     else row.push(genDecoy());
                 }
                 dataMatrix.push({type: 'data', cells: row});
             }
-            strictFormula = `=LEFT(B2,${numChars})`;
-            explanation = `<h4>Bedah Ekstraksi String</h4><ul><li><strong>Mekanisme Inti:</strong> <code>LEFT</code> berinteraksi langsung dengan tipe data String. Ia membaca indeks memori string dari byte ke-0 (paling kiri) dan memotong memori persis sepanjang ${numChars} karakter.</li><li><strong>Keterhubungan (Impact):</strong> Di ranah ETL (Extract, Transform, Load), fungsi ini mutlak diperlukan untuk menghilangkan suffix sampah.</li></ul>`;
-            missionParams = { missionText: `Ekstrak ${numChars} karakter PERTAMA dari teks kotor di **Kolom B** Baris 2.` };
+            strictFormula = `=IF(LEFT(B2,3)="VIP","PRIORITAS","STANDAR")`;
+            explanation = `<h4>Bedah Logika Dekomposisi String</h4><ul><li><strong>Mekanisme Inti:</strong> Iris memori string menggunakan <code>LEFT</code> terlebih dahulu sebelum memberinya ke gerbang <code>IF</code>.</li><li><strong>Impact:</strong> Ekstraksi data semi-terstruktur dari database mentah.</li></ul>`;
+            missionParams = { missionText: `Ekstrak 3 karakter PERTAMA dari Kolom B Baris 2. JIKA teks tersebut adalah "VIP", cetak "PRIORITAS". Jika bukan, cetak "STANDAR".` };
+        }
+        else {
+            let limitA = 80; let limitB = 90;
+            for(let r=1; r<=rows; r++) {
+                let row = [`K-${r}`];
+                let valA = Math.floor(Math.random() * 40) + 60;
+                let valB = Math.floor(Math.random() * 40) + 60;
+                for(let c=2; c<=totalCols; c++) {
+                    if (c === targetColIndex) { 
+                        row.push("?"); targetArray.push((valA >= limitA && valB >= limitB) ? "LULUS" : "GAGAL"); 
+                    }
+                    else if (c === 2) row.push(valA);
+                    else if (c === 3) row.push(valB);
+                    else row.push(genDecoy());
+                }
+                dataMatrix.push({type: 'data', cells: row});
+            }
+            strictFormula = `=IF(AND(B2>=${limitA},C2>=${limitB}),"LULUS","GAGAL")`;
+            explanation = `<h4>Bedah Gerbang Boolean Sirkuit Seri</h4><ul><li><strong>Mekanisme Inti:</strong> <code>AND</code> memaksa arsitektur sirkuit seri. Jika satu node melempar 0, seluruh gerbang runtuh dan IF mengeksekusi parameter FALSE.</li></ul>`;
+            missionParams = { missionText: `Tulis rumus di **Kolom ${targetColLetter}** Baris 2. JIKA Metrik A (Kolom B) >= ${limitA} DAN Metrik B (Kolom C) >= ${limitB}, cetak "LULUS". Jika salah satu gagal, cetak "GAGAL".` };
         }
         targetValue = targetArray;
     }
     else {
-        // TIER KOMPLEKS (LOOKUP, INDEX MATCH, NESTED IF, TITAN)
+        // TIER KOMPLEKS - Penyatuan Dinamis
         calcMode = (scale % 2 === 0) ? "DASHBOARD" : "MASS_FILL";
         rows = Math.min(10 + Math.floor(scale / 10), 200); 
         totalCols = Math.min(5 + Math.floor(scale / 20), 26);
@@ -185,7 +207,7 @@ function compileLevelData(meta) {
             }
             targetValue = tValue;
             strictFormula = `=IFERROR(VLOOKUP(B2,A4:${colLtr}${rows+3},3,0),"REJECT")`;
-            explanation = `<h4>Bedah Exception Handling & Skalar Lookup</h4><ul><li><strong>Mekanisme Inti (Layer 1):</strong> <code>VLOOKUP</code> diluncurkan untuk memetakan referensi tunggal B2 dan mengekstrak entitas statis (Konstanta Skalar) berupa Harga di kolom ke-3.</li><li><strong>Eksekusi Arsitektural (Layer 0):</strong> Jika Konstanta gagal dipanggil, selubung pelindung luar <code>IFERROR</code> secara sepihak membatalkan kerusakan mesin dan menginjeksi peringatan "REJECT" ke Dasbor Eksekutif. Ini adalah fondasi Anti-Fragile.</li></ul>`;
+            explanation = `<h4>Bedah Exception Handling & Skalar Lookup</h4><ul><li><strong>Mekanisme Inti (Layer 1):</strong> <code>VLOOKUP</code> memetakan referensi B2 mengekstrak entitas statis.</li><li><strong>Eksekusi Arsitektural (Layer 0):</strong> Selubung pelindung <code>IFERROR</code> secara sepihak membatalkan kerusakan mesin dan menginjeksi peringatan "REJECT" ke Dasbor. Ini adalah fondasi Anti-Fragile.</li></ul>`;
             missionParams = { missionText: `Tulis di **B3**. Cari Harga (Kolom C) dari Produk (Input B2) menggunakan VLOOKUP secara Exact Match. Matriks data murni dimulai dari A4. JIKA gagal/error, bungkus dengan IFERROR untuk menampilkan teks "REJECT".` };
         } else {
             let targetColIndex = 4;
@@ -201,7 +223,7 @@ function compileLevelData(meta) {
             }
             targetValue = targetArray;
             strictFormula = `=IF(C2>=90,B2*0.5,0)`;
-            explanation = `<h4>Bedah Relational Boolean Logic</h4><ul><li><strong>Mekanisme Inti:</strong> Gerbang logika memverifikasi secara ketat apakah C2 memenuhi ambang batas 90.</li><li><strong>Keterhubungan (Impact):</strong> Rumus ini memastikan otonomi sistem *payroll*. Tidak ada kebocoran dana (Zero-Trust Policy) dalam perhitungan bonus massal.</li></ul>`;
+            explanation = `<h4>Bedah Relational Boolean Logic</h4><ul><li><strong>Mekanisme Inti:</strong> Gerbang logika memverifikasi ambang batas ketat.</li><li><strong>Keterhubungan (Impact):</strong> Memastikan otonomi sistem *payroll*. Tidak ada kebocoran dana (Zero-Trust Policy).</li></ul>`;
             missionParams = { missionText: `Tulis di **Baris 2** (Kolom D). JIKA KPI (C2) >= 90, MAKA kalikan Gaji (B2) dengan 0.5. Jika gagal, beri nilai 0.` };
         }
     }
