@@ -54,10 +54,23 @@
   <script src="./engine.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('ServiceWorker Aktif!', reg.scope))
-          .catch(err => console.error('Gagal ServiceWorker', err));
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              console.log('Update Arsitektur Terdeteksi. Menginisialisasi Ulang...');
+            }
+          });
+        });
+      });
+
+      // Dengarkan perubahan kontroler dan paksa refresh halaman
+      let refreshing;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
       });
     }
   </script>
