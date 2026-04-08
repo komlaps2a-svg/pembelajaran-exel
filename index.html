@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel Omniverse: Bulletproof Engine</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hyperformula/dist/hyperformula.full.min.js"></script>
+</head>
+<body>
+
+  <nav class="top-bar glass">...</nav>
+  <div class="overlay" id="overlay"></div>
+  <aside class="sidebar glass" id="sidebar">...</aside>
+  <div class="app-wrapper">
+    <main class="book-container glass" id="bookContainer">
+      <section class="page" id="theoryPage"><h2>Inisialisasi Sistem...</h2></section>
+      <section class="page" id="practicePage"></section>
+    </main>
+  </div>
+
+  <script src="js/narrative.js"></script>
+  <script src="js/engine.js"></script>
+  <script>
+    // Inisialisasi Service Worker untuk GitHub Pages / PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(reg => console.log('ServiceWorker terdaftar!', reg.scope))
+          .catch(err => console.error('Gagal daftar ServiceWorker', err));
+      });
+    }
+  </script>
+</body>
+</html>
