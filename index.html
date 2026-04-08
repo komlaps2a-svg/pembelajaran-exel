@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Excel Omniverse: Bulletproof Engine</title>
+  <title>Omniverse 5000: Data Architect</title>
   
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./style.css">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
@@ -14,9 +14,35 @@
 </head>
 <body>
 
-  <nav class="top-bar glass">...</nav>
-  <div class="overlay" id="overlay"></div>
-  <aside class="sidebar glass" id="sidebar">...</aside>
+  <nav class="top-bar glass">
+    <button class="menu-btn" onclick="openSidebar()">☰ Menu</button>
+    <div class="top-level-indicator" id="topLevelText">TITAN ENGINE</div>
+  </nav>
+
+  <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+  <aside class="sidebar glass" id="sidebar">
+    <div class="sidebar-header">
+      <h1>Omniverse 5000</h1>
+      <button class="close-btn" onclick="closeSidebar()">×</button>
+    </div>
+    
+    <div class="tracker-box">
+      <h3>Rekor Tertinggi</h3>
+      <div class="val" id="highestLevelDisplay">0</div>
+      <button class="btn-resume" onclick="resumeJourney()">Lanjutkan Rekor</button>
+    </div>
+
+    <button class="theme-toggle" onclick="toggleTheme()">🌓 Ganti Tema Tampilan</button>
+    
+    <div class="search-container">
+      <input type="text" id="searchInput" class="search-box" placeholder="Ketik level (cth: 2000)..." oninput="handleTyping(event)" onkeydown="handleEnterKey(event)">
+      <button class="btn-search" onclick="executeExactSearch()">Cari</button>
+    </div>
+
+    <div class="toc-list" id="tocList"></div>
+  </aside>
+
   <div class="app-wrapper">
     <main class="book-container glass" id="bookContainer">
       <section class="page" id="theoryPage"><h2>Inisialisasi Sistem...</h2></section>
@@ -24,15 +50,14 @@
     </main>
   </div>
 
-  <script src="js/narrative.js"></script>
-  <script src="js/engine.js"></script>
+  <script src="./narrative.js"></script>
+  <script src="./engine.js"></script>
   <script>
-    // Inisialisasi Service Worker untuk GitHub Pages / PWA
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/service-worker.js')
-          .then(reg => console.log('ServiceWorker terdaftar!', reg.scope))
-          .catch(err => console.error('Gagal daftar ServiceWorker', err));
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('ServiceWorker Aktif!', reg.scope))
+          .catch(err => console.error('Gagal ServiceWorker', err));
       });
     }
   </script>
